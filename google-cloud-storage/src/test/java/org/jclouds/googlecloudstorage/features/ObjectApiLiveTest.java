@@ -24,12 +24,17 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.List;
 import java.util.UUID;
 
 import javax.ws.rs.core.MediaType;
 
+import com.google.common.io.Files;
 import org.jclouds.googlecloudstorage.domain.Bucket;
 import org.jclouds.googlecloudstorage.domain.DomainResourceReferences.DestinationPredefinedAcl;
 import org.jclouds.googlecloudstorage.domain.DomainResourceReferences.ObjectRole;
@@ -54,6 +59,7 @@ import org.jclouds.io.ContentMetadata;
 import org.jclouds.io.PayloadEnclosing;
 import org.jclouds.io.Payloads;
 import org.jclouds.io.payloads.ByteSourcePayload;
+import org.jclouds.io.payloads.InputStreamPayload;
 import org.jclouds.utils.TestUtils;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -71,7 +77,9 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
    private static final String BUCKET_NAME2 = "jcloudobjectdestination" + UUID.randomUUID();
    private static final String UPLOAD_OBJECT_NAME = "objectOperation.txt";
    private static final String UPLOAD_OBJECT_NAME2 = "jcloudslogo.jpg";
+   private static final String STREAMED_UPLOAD_OBJECT = "streamedObject.txt";
    private static final String MULTIPART_UPLOAD_OBJECT = "multipart_related.jpg";
+   private static final String STREAMED_MULTIPART_UPLOAD_OBJECT = "streamedImage.jpg";
    private static final String COPIED_OBJECT_NAME = "copyofObjectOperation.txt";
    private static final String COPIED_OBJECT_NAME2 = "copyObjectWithMeta.txt";
    private static final String COMPOSED_OBJECT = "ComposedObject1.txt";
@@ -117,11 +125,33 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
       InsertObjectOptions options = new InsertObjectOptions().name(UPLOAD_OBJECT_NAME);
 
       GoogleCloudStorageObject gcsObject = api().simpleUpload(BUCKET_NAME, "text/plain",
-               payload.getPayload().getContentMetadata().getContentLength(), payload.getPayload(), options);
+              payload.getPayload().getContentMetadata().getContentLength(), payload.getPayload(), options);
 
       assertNotNull(gcsObject);
       assertEquals(gcsObject.bucket(), BUCKET_NAME);
       assertEquals(gcsObject.name(), UPLOAD_OBJECT_NAME);
+   }
+
+   @Test(groups = "live")
+   public void testSimpleUploadWithInputStream() throws IOException, URISyntaxException {
+
+      URL fileURL = getClass().getClassLoader().getResource(STREAMED_UPLOAD_OBJECT);
+      File file = new File(fileURL.toURI());
+      long contentLength = file.length();
+      FileInputStream fileInputStream = new FileInputStream(file);
+      InputStreamPayload inputStreamPayload = Payloads.newInputStreamPayload(fileInputStream);
+
+      PayloadEnclosing payload = new PayloadEnclosingImpl(inputStreamPayload);
+      payload.getPayload().getContentMetadata().setContentLength(contentLength);
+
+      InsertObjectOptions options = new InsertObjectOptions().name(STREAMED_UPLOAD_OBJECT);
+
+      GoogleCloudStorageObject gcsObject = api().simpleUpload(BUCKET_NAME, "text/plain",
+              payload.getPayload().getContentMetadata().getContentLength(), payload.getPayload(), options);
+
+      assertNotNull(gcsObject);
+      assertEquals(gcsObject.bucket(), BUCKET_NAME);
+      assertEquals(gcsObject.name(), STREAMED_UPLOAD_OBJECT);
    }
 
    @Test(groups = "live", dependsOnMethods = "testSimpleUpload")
@@ -147,7 +177,8 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
 
       InsertObjectOptions options = new InsertObjectOptions().name(UPLOAD_OBJECT_NAME2);
 
-      GoogleCloudStorageObject gcsObject = api().simpleUpload(BUCKET_NAME, "image/jpeg", contentLength, payload, options);
+      GoogleCloudStorageObject gcsObject = api().simpleUpload(BUCKET_NAME, "image/jpeg", contentLength, payload,
+              options);
 
       assertNotNull(gcsObject);
       assertEquals(gcsObject.bucket(), BUCKET_NAME);
@@ -190,7 +221,8 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
 
    @Test(groups = "live", dependsOnMethods = "testGetObject")
    public void testCopyObject() throws IOException {
-      GoogleCloudStorageObject gcsObject = api().copyObject(BUCKET_NAME2, COPIED_OBJECT_NAME, BUCKET_NAME, UPLOAD_OBJECT_NAME);
+      GoogleCloudStorageObject gcsObject = api().copyObject(BUCKET_NAME2, COPIED_OBJECT_NAME, BUCKET_NAME,
+              UPLOAD_OBJECT_NAME);
 
       assertNotNull(gcsObject);
       assertEquals(gcsObject.bucket(), BUCKET_NAME2);
@@ -277,9 +309,10 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
       ComposeObjectTemplate requestTemplate = ComposeObjectTemplate.create(sourceList, destination);
 
       ComposeObjectOptions options = new ComposeObjectOptions().destinationPredefinedAcl(
-               DestinationPredefinedAcl.BUCKET_OWNER_READ).ifMetagenerationNotMatch(RANDOM_LONG);
+              DestinationPredefinedAcl.BUCKET_OWNER_READ).ifMetagenerationNotMatch(RANDOM_LONG);
 
-      GoogleCloudStorageObject gcsObject = api().composeObjects(BUCKET_NAME2, COMPOSED_OBJECT2, requestTemplate, options);
+      GoogleCloudStorageObject gcsObject = api().composeObjects(BUCKET_NAME2, COMPOSED_OBJECT2, requestTemplate,
+              options);
 
       assertNotNull(gcsObject);
       assertNotNull(gcsObject.acl());
@@ -419,7 +452,46 @@ public class ObjectApiLiveTest extends BaseGoogleCloudStorageApiLiveTest {
       PayloadEnclosing impl = api().download(BUCKET_NAME, MULTIPART_UPLOAD_OBJECT);
 
       assertThat(ByteStreams2.toByteArrayAndClose(impl.getPayload().openStream())).isEqualTo(
-               ByteStreams2.toByteArrayAndClose(payloadImpl.getPayload().openStream()));
+              ByteStreams2.toByteArrayAndClose(payloadImpl.getPayload().openStream()));
+   }
+
+   @Test(groups = "live")
+   public void testMultipartStreamedJpegUpload() throws IOException, URISyntaxException {
+
+      URL fileURL = getClass().getClassLoader().getResource(STREAMED_MULTIPART_UPLOAD_OBJECT);
+      File file = new File(fileURL.toURI());
+      long contentLength = file.length();
+      FileInputStream fileInputStream = new FileInputStream(file);
+      InputStreamPayload inputStreamPayload = Payloads.newInputStreamPayload(fileInputStream);
+      PayloadEnclosing payloadImpl = new PayloadEnclosingImpl(inputStreamPayload);
+
+      ObjectTemplate template = new ObjectTemplate();
+
+      ObjectAccessControls oacl = ObjectAccessControls.builder().bucket(BUCKET_NAME).entity("allUsers")
+              .role(ObjectRole.OWNER).build();
+
+      // This would trigger server side validation of md5
+      md5Hash = base64().encode(Files.hash(file, Hashing.md5()).asBytes());
+      // TODO: crc32c = without making a compile dep on guava 18
+
+      template.contentType("image/jpeg").addAcl(oacl).size(contentLength).name(STREAMED_MULTIPART_UPLOAD_OBJECT)
+              .contentLanguage("en").contentDisposition("attachment").md5Hash(md5Hash)
+              .customMetadata("custommetakey1", "custommetavalue1").crc32c(crc32c)
+              .customMetadata(ImmutableMap.of("Adrian", "powderpuff"));
+
+      GoogleCloudStorageObject gcsObject = api().multipartUpload(BUCKET_NAME, template, payloadImpl.getPayload());
+
+      assertThat(gcsObject.bucket()).isEqualTo(BUCKET_NAME);
+      assertThat(gcsObject.name()).isEqualTo(STREAMED_MULTIPART_UPLOAD_OBJECT);
+      checkHashCodes(gcsObject);
+
+      assertThat(gcsObject.metadata()).contains(entry("custommetakey1", "custommetavalue1"),
+              entry("Adrian", "powderpuff")).doesNotContainKey("adrian");
+
+      PayloadEnclosing impl = api().download(BUCKET_NAME, STREAMED_MULTIPART_UPLOAD_OBJECT);
+
+      assertThat(ByteStreams2.toByteArrayAndClose(impl.getPayload().openStream())).isEqualTo(
+              ByteStreams2.toByteArrayAndClose(new FileInputStream(file)));
    }
 
    private void checkHashCodes(GoogleCloudStorageObject gcsObject) {

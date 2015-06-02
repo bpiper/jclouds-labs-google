@@ -32,7 +32,6 @@ import javax.ws.rs.Produces;
 import org.jclouds.Fallbacks.FalseOnNotFoundOr404;
 import org.jclouds.Fallbacks.NullOnNotFoundOr404;
 import org.jclouds.googlecloudstorage.binders.MultipartUploadBinder;
-import org.jclouds.googlecloudstorage.binders.UploadBinder;
 import org.jclouds.googlecloudstorage.domain.GoogleCloudStorageObject;
 import org.jclouds.googlecloudstorage.domain.ListPageWithPrefixes;
 import org.jclouds.googlecloudstorage.domain.templates.ComposeObjectTemplate;
@@ -182,7 +181,6 @@ public interface ObjectApi {
    @QueryParams(keys = "uploadType", values = "media")
    @Consumes(APPLICATION_JSON)
    @Path("/upload/storage/v1/b/{bucket}/o")
-   @MapBinder(UploadBinder.class)
    GoogleCloudStorageObject simpleUpload(@PathParam("bucket") String bucketName, @HeaderParam("Content-Type") String contentType,
             @HeaderParam("Content-Length") Long contentLength, @PayloadParam("payload") Payload payload,
             InsertObjectOptions Options);

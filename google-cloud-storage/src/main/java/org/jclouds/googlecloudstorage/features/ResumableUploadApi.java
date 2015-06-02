@@ -28,7 +28,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 
-import org.jclouds.googlecloudstorage.binders.UploadBinder;
 import org.jclouds.googlecloudstorage.domain.ResumableUpload;
 import org.jclouds.googlecloudstorage.domain.templates.ObjectTemplate;
 import org.jclouds.googlecloudstorage.options.InsertObjectOptions;
@@ -36,7 +35,6 @@ import org.jclouds.googlecloudstorage.parser.ParseToResumableUpload;
 import org.jclouds.io.Payload;
 import org.jclouds.oauth.v2.filters.OAuthFilter;
 import org.jclouds.rest.annotations.BinderParam;
-import org.jclouds.rest.annotations.MapBinder;
 import org.jclouds.rest.annotations.PayloadParam;
 import org.jclouds.rest.annotations.QueryParams;
 import org.jclouds.rest.annotations.RequestFilters;
@@ -122,7 +120,6 @@ public interface ResumableUploadApi {
    @PUT
    @QueryParams(keys = "uploadType", values = "resumable")
    @Path("/upload/storage/v1/b/{bucket}/o")
-   @MapBinder(UploadBinder.class)
    @ResponseParser(ParseToResumableUpload.class)
    ResumableUpload upload(@PathParam("bucket") String bucketName, @QueryParam("upload_id") String uploadId,
             @HeaderParam("Content-Type") String contentType, @HeaderParam("Content-Length") String contentLength,
@@ -152,7 +149,6 @@ public interface ResumableUploadApi {
    @PUT
    @QueryParams(keys = "uploadType", values = "resumable")
    @Path("/upload/storage/v1/b/{bucket}/o")
-   @MapBinder(UploadBinder.class)
    @ResponseParser(ParseToResumableUpload.class)
    ResumableUpload chunkUpload(@PathParam("bucket") String bucketName, @QueryParam("upload_id") String uploadId,
             @HeaderParam("Content-Type") String contentType, @HeaderParam("Content-Length") Long contentLength,
